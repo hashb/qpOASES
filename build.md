@@ -12,6 +12,10 @@ cmake --build .
 cmake --build . --target install
 ```
 
+The default CMake build creates both `libqpOASES.so` and `libqpOASES.a` on
+Linux. Disable one with `QPOASES_BUILD_SHARED_LIBRARY=OFF` or
+`QPOASES_BUILD_STATIC_LIBRARY=OFF` if needed.
+
 Downstream projects can consume the installed package with:
 
 ```cmake
