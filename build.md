@@ -51,14 +51,17 @@ runs on pull requests and manual dispatch only.
 
 ## Launchpad PPA
 
-Create a PPA named `qpoases` under your Launchpad account:
+Create a PPA named `robotics` under your Launchpad account:
 
 ```text
 https://launchpad.net/~hashb
 ```
 
-Use `ppa:hashb/qpoases` for a PPA named `qpoases`, or `ppa:hashb/ppa` for
-Launchpad's default PPA name.
+This repository includes a local publishing script for your robotics PPA:
+
+```text
+ppa:hashb/robotics
+```
 
 The upload must be signed by a GPG key registered on the `hashb` Launchpad
 account. Keep the private key on your own machine and upload locally with
@@ -81,36 +84,27 @@ Suggested series list:
 resolute noble jammy focal bionic
 ```
 
-Example local source upload for one series:
+Install the packaging tools, then run the script from a clean committed
+checkout:
 
 ```sh
 sudo apt-get update
 sudo apt-get install -y build-essential cmake debhelper devscripts dpkg-dev dput gnupg
+scripts/publish-ppa.sh
+```
 
-series=noble
-series_version=ubuntu24.04
-run_suffix=1
-upstream_version="$(dpkg-parsechangelog -S Version | sed -E 's/-.*$//')"
-upload_version="${upstream_version}-1~${series_version}.${run_suffix}"
+Useful overrides:
 
-git archive --format=tar \
-  --prefix="qpoases-${upstream_version}/" \
-  HEAD -- . ':(exclude)debian' \
-  | gzip -n > "../qpoases_${upstream_version}.orig.tar.gz"
-
-dch --force-distribution \
-  --distribution "${series}" \
-  --newversion "${upload_version}" \
-  "Build for ${series} PPA."
-
-dpkg-buildpackage -S -sa
-dput ppa:hashb/qpoases "../qpoases_${upload_version}_source.changes"
+```sh
+scripts/publish-ppa.sh --series "noble,jammy,focal"
+scripts/publish-ppa.sh --suffix 2
+scripts/publish-ppa.sh --key <gpg-key-id>
 ```
 
 After Launchpad finishes building:
 
 ```sh
-sudo add-apt-repository ppa:hashb/qpoases
+sudo add-apt-repository ppa:hashb/robotics
 sudo apt-get update
 sudo apt-get install libqpoases-dev
 ```
