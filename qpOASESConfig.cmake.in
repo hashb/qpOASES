@@ -1,29 +1,23 @@
-# CMake qpOASES module
+# CMake qpOASES package configuration
 #
-# It defines the following variables:
-# qpOASES_FOUND         - TRUE
-# qpOASES_INCLUDE_DIR  - The qpOASES include directory
-# qpOASES_LIBRARY_DIR  - The qpOASES library directory
-# qpOASES_LIBRARY     - The qpOASES library
-# qpOASES_VERSION       - The qpOASES version in the form <major>.<minor>
-
-
+# Defines the qpOASES::qpOASES imported target and the following
+# compatibility variables:
+#   qpOASES_INCLUDE_DIR
+#   qpOASES_LIBRARY_DIR
+#   qpOASES_LIBRARY
+#   qpOASES_LIBRARIES
+#   qpOASES_VERSION
 
 @PACKAGE_INIT@
 
-set(qpOASES_VERSION @PACKAGE_VERSION@)
-
-
+set(qpOASES_VERSION "@PACKAGE_VERSION@")
 set_and_check(qpOASES_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
-
-
-set(qpOASES_INCLUDE_DIR "${qpOASES_INCLUDE_DIR}" CACHE STRING "Include path for qpOASES and its dependencies")
-set_and_check(qpOASES_LIBRARY_DIR @PACKAGE_LIB_INSTALL_DIR@)
-set(qpOASES_LIBRARY_DIR "${qpOASES_LIBRARY_DIR}" CACHE STRING "Library path for qpOASES and its dependencies")
+set_and_check(qpOASES_LIBRARY_DIR "@PACKAGE_LIB_INSTALL_DIR@")
 
 find_library(qpOASES_LIBRARY NAMES qpOASES
-    PATHS ${qpOASES_LIBRARY_DIR} NO_DEFAULT_PATH)
+    PATHS "${qpOASES_LIBRARY_DIR}"
+    NO_DEFAULT_PATH)
+set(qpOASES_LIBRARIES "${qpOASES_LIBRARY}")
 
-
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(qpOASES DEFAULT_MSG qpOASES_INCLUDE_DIR qpOASES_LIBRARY_DIR qpOASES_LIBRARY qpOASES_VERSION)
+include("${CMAKE_CURRENT_LIST_DIR}/qpOASESTargets.cmake")
+check_required_components(qpOASES)
