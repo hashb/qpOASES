@@ -88,23 +88,22 @@ Run the `Publish PPA source package` workflow manually with the defaults:
 ```text
 launchpad_owner: hashb
 ppa_name: qpoases
-ubuntu_series: noble,jammy,focal,bionic,xenial
+ubuntu_series: resolute,noble,jammy,focal,bionic
 ```
 
 The workflow creates one signed source upload per Ubuntu series. Versions use
 numeric Ubuntu suffixes so upgrades sort correctly across releases, for example:
 
 ```text
-3.2.2-1~ubuntu16.04.123.1
 3.2.2-1~ubuntu18.04.123.1
 3.2.2-1~ubuntu20.04.123.1
 3.2.2-1~ubuntu22.04.123.1
 3.2.2-1~ubuntu24.04.123.1
+3.2.2-1~ubuntu26.04.123.1
 ```
 
 To publish fewer releases, pass a shorter comma-separated list such as
-`noble,jammy,focal`. To include Ubuntu 26.04 when your Launchpad PPA lists it,
-add `resolute`.
+`noble,jammy,focal`.
 
 After Launchpad finishes building:
 

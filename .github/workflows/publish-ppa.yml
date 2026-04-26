@@ -14,7 +14,7 @@ on:
       ubuntu_series:
         description: Comma-separated Ubuntu series to publish to.
         required: true
-        default: noble,jammy,focal,bionic,xenial
+        default: resolute,noble,jammy,focal,bionic
       version_suffix:
         description: Optional suffix after the Ubuntu version; defaults to run number and attempt.
         required: false
