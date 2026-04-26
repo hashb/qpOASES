@@ -1,0 +1,6 @@
+qpoases (3.2.2-1~ppa1) noble; urgency=medium
+
+  * Package qpOASES 3.2.2 for Launchpad PPA builds.
+  * Install headers, the shared library, and CMake package files.
+
+ -- qpOASES Maintainers <support@qpOASES.org>  Sun, 26 Apr 2026 00:00:00 +0530
