@@ -1,8 +1,7 @@
 #!/usr/bin/make -f
 
-include /usr/share/dpkg/architecture.mk
-
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 %:
 	dh $@ --buildsystem=cmake

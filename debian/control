@@ -3,12 +3,11 @@ Section: libs
 Priority: optional
 Maintainer: qpOASES Maintainers <support@qpOASES.org>
 Build-Depends:
- cmake (>= 3.18),
- debhelper-compat (= 13),
+ cmake (>= 3.5),
+ debhelper (>= 9),
  dpkg-dev,
  g++
 Standards-Version: 4.7.0
-Rules-Requires-Root: no
 Homepage: https://github.com/coin-or/qpOASES
 Vcs-Browser: https://github.com/hashb/qpOASES
 Vcs-Git: https://github.com/hashb/qpOASES.git

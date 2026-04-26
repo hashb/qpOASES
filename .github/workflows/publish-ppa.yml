@@ -12,11 +12,11 @@ on:
         required: true
         default: qpoases
       ubuntu_series:
-        description: Ubuntu series to publish to, for example noble or jammy.
+        description: Comma-separated Ubuntu series to publish to.
         required: true
-        default: noble
+        default: noble,jammy,focal,bionic,xenial
       version_suffix:
-        description: Optional suffix after the Ubuntu series; defaults to the workflow run number.
+        description: Optional suffix after the Ubuntu version; defaults to run number and attempt.
         required: false
         default: ""
 
@@ -80,41 +80,56 @@ jobs:
 
           echo "DEBSIGN_KEYID=${key_id}" >> "${GITHUB_ENV}"
 
-      - name: Prepare source package metadata
+      - name: Build and upload source packages
         run: |
           set -euo pipefail
-          series="${{ inputs.ubuntu_series }}"
-          suffix="${{ inputs.version_suffix }}"
-          if [ -z "${suffix}" ]; then
-            suffix="${GITHUB_RUN_NUMBER}"
-          fi
-
-          export DEBFULLNAME="${DEBFULLNAME:-qpOASES PPA Builder}"
-          export DEBEMAIL="${DEBEMAIL:-qpoases-ppa@example.invalid}"
-
-          upstream_version="$(dpkg-parsechangelog -S Version | sed -E 's/-.*$//')"
-          upload_version="${upstream_version}-1~${series}${suffix}"
-          dch --force-distribution \
-            --distribution "${series}" \
-            --newversion "${upload_version}" \
-            "Build for ${series} PPA."
-
-          git archive --format=tar \
-            --prefix="qpoases-${upstream_version}/" \
-            HEAD -- . ':(exclude)debian' \
-            | gzip -n > "../qpoases_${upstream_version}.orig.tar.gz"
-
-      - name: Build signed source package
-        run: dpkg-buildpackage -S -sa -k"${DEBSIGN_KEYID}"
-
-      - name: Upload source package to Launchpad
-        run: |
-          set -euo pipefail
+          series_input="${{ inputs.ubuntu_series }}"
+          series_input="${series_input// /}"
+          suffix_input="${{ inputs.version_suffix }}"
           target_ppa="${LAUNCHPAD_PPA:-ppa:${{ inputs.launchpad_owner }}/${{ inputs.ppa_name }}}"
           if [ -z "${target_ppa}" ]; then
             echo "No Launchpad PPA target configured" >&2
             exit 1
           fi
 
-          changes_file="$(ls ../qpoases_*_source.changes | head -n 1)"
-          dput "${target_ppa}" "${changes_file}"
+          suffix="${suffix_input}"
+          if [ -z "${suffix}" ]; then
+            suffix="${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          fi
+
+          export DEBFULLNAME="${DEBFULLNAME:-qpOASES PPA Builder}"
+          export DEBEMAIL="${DEBEMAIL:-qpoases-ppa@example.invalid}"
+
+          upstream_version="$(dpkg-parsechangelog -S Version | sed -E 's/-.*$//')"
+          git archive --format=tar \
+            --prefix="qpoases-${upstream_version}/" \
+            HEAD -- . ':(exclude)debian' \
+            | gzip -n > "../qpoases_${upstream_version}.orig.tar.gz"
+
+          cp debian/changelog /tmp/qpoases-changelog.orig
+          IFS=',' read -r -a series_list <<< "${series_input}"
+          for series in "${series_list[@]}"; do
+            if [ -z "${series}" ]; then
+              continue
+            fi
+
+            case "${series}" in
+              xenial) series_version="ubuntu16.04" ;;
+              bionic) series_version="ubuntu18.04" ;;
+              focal) series_version="ubuntu20.04" ;;
+              jammy) series_version="ubuntu22.04" ;;
+              noble) series_version="ubuntu24.04" ;;
+              resolute) series_version="ubuntu26.04" ;;
+              *) series_version="${series}" ;;
+            esac
+
+            cp /tmp/qpoases-changelog.orig debian/changelog
+            upload_version="${upstream_version}-1~${series_version}.${suffix}"
+            dch --force-distribution \
+              --distribution "${series}" \
+              --newversion "${upload_version}" \
+              "Build for ${series} PPA."
+
+            dpkg-buildpackage -S -sa -k"${DEBSIGN_KEYID}"
+            dput "${target_ppa}" "../qpoases_${upload_version}_source.changes"
+          done

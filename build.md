@@ -5,9 +5,11 @@
 Build and install qpOASES with CMake:
 
 ```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-cmake --install build --prefix /usr/local
+mkdir -p build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build .
+cmake --build . --target install
 ```
 
 Downstream projects can consume the installed package with:
@@ -86,12 +88,23 @@ Run the `Publish PPA source package` workflow manually with the defaults:
 ```text
 launchpad_owner: hashb
 ppa_name: qpoases
-ubuntu_series: noble
+ubuntu_series: noble,jammy,focal,bionic,xenial
 ```
 
-The workflow creates an orig tarball, updates `debian/changelog` to a unique
-version like
-`3.2.2-1~noble123`, signs the source package, and uploads it with `dput`.
+The workflow creates one signed source upload per Ubuntu series. Versions use
+numeric Ubuntu suffixes so upgrades sort correctly across releases, for example:
+
+```text
+3.2.2-1~ubuntu16.04.123.1
+3.2.2-1~ubuntu18.04.123.1
+3.2.2-1~ubuntu20.04.123.1
+3.2.2-1~ubuntu22.04.123.1
+3.2.2-1~ubuntu24.04.123.1
+```
+
+To publish fewer releases, pass a shorter comma-separated list such as
+`noble,jammy,focal`. To include Ubuntu 26.04 when your Launchpad PPA lists it,
+add `resolute`.
 
 After Launchpad finishes building:
 

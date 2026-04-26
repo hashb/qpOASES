@@ -29,7 +29,7 @@
 ##     Date:      2007-2017
 ##
 
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.5)
 
 PROJECT(qpOASES CXX)
 include(GNUInstallDirs)
