@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: qpOASES Maintainers <support@qpOASES.org>
 Build-Depends:
  cmake (>= 3.5),
- debhelper (>= 9),
+ debhelper (>= 11),
  dpkg-dev,
  g++
 Standards-Version: 4.7.0

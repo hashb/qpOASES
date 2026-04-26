@@ -109,6 +109,7 @@ Useful overrides:
 scripts/publish-ppa.sh --series "noble,jammy,focal"
 scripts/publish-ppa.sh --suffix 2
 scripts/publish-ppa.sh --key 26D05B8BEC1F83BC3585363FBFFF31922FF3092A
+scripts/publish-ppa.sh --no-orig
 scripts/publish-ppa-docker.sh --series "noble,jammy,focal"
 ```
 

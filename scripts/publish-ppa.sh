@@ -6,6 +6,7 @@ PPA="ppa:hashb/robotics"
 SERIES="resolute noble jammy focal bionic"
 VERSION_SUFFIX="$(date -u +%Y%m%d%H%M)"
 SIGN_KEY=""
+INCLUDE_ORIG="first"
 
 usage() {
     cat <<'EOF'
@@ -21,6 +22,8 @@ Options:
                     Default: resolute noble jammy focal bionic
   --suffix VALUE     Version suffix. Default: UTC timestamp YYYYMMDDHHMM
   --key VALUE        Optional GPG fingerprint/key id passed to dpkg-buildpackage -k.
+  --no-orig          Do not include qpoases_<version>.orig.tar.gz in uploads.
+                    Use this after the orig tarball is already accepted in the PPA.
   -h, --help         Show this help.
 
 Examples:
@@ -56,6 +59,10 @@ while [ "$#" -gt 0 ]; do
             [ "$#" -ge 2 ] || die "--key requires a value"
             SIGN_KEY="$2"
             shift 2
+            ;;
+        --no-orig)
+            INCLUDE_ORIG="none"
+            shift
             ;;
         -h|--help)
             usage
@@ -127,6 +134,13 @@ for series in ${series_list}; do
 
     upload_version="${upstream_version}-1~${series_version}.${VERSION_SUFFIX}"
     cp "${workdir}/changelog.orig" "${source_dir}/debian/changelog"
+    upload_includes_orig=0
+    if [ "${INCLUDE_ORIG}" = "first" ]; then
+        source_option="-sa"
+        upload_includes_orig=1
+    else
+        source_option="-sd"
+    fi
 
     (
         cd "${source_dir}"
@@ -135,11 +149,14 @@ for series in ${series_list}; do
             --newversion "${upload_version}" \
             "Build for ${series} PPA."
 
-        dpkg-buildpackage -S -sa -k"${SIGN_KEY}"
+        dpkg-buildpackage -S "${source_option}" -k"${SIGN_KEY}"
     )
 
     changes_file="${workdir}/${source_package}_${upload_version}_source.changes"
     dput "${PPA}" "${changes_file}"
+    if [ "${upload_includes_orig}" -eq 1 ]; then
+        INCLUDE_ORIG="none"
+    fi
 done
 
 echo "Upload requests submitted to ${PPA}."
