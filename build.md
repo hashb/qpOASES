@@ -71,11 +71,11 @@ Create one signed source upload per Ubuntu series. Versions should use numeric
 Ubuntu suffixes so upgrades sort correctly across releases, for example:
 
 ```text
-3.2.2-1~ubuntu18.04.123.1
-3.2.2-1~ubuntu20.04.123.1
-3.2.2-1~ubuntu22.04.123.1
-3.2.2-1~ubuntu24.04.123.1
-3.2.2-1~ubuntu26.04.123.1
+3.2.2+ppa202604261600u18.04-1~u18.04.202604261600
+3.2.2+ppa202604261600u20.04-1~u20.04.202604261600
+3.2.2+ppa202604261600u22.04-1~u22.04.202604261600
+3.2.2+ppa202604261600u24.04-1~u24.04.202604261600
+3.2.2+ppa202604261600u26.04-1~u26.04.202604261600
 ```
 
 Suggested series list:
@@ -112,6 +112,10 @@ scripts/publish-ppa.sh --key 26D05B8BEC1F83BC3585363FBFFF31922FF3092A
 scripts/publish-ppa.sh --no-orig
 scripts/publish-ppa-docker.sh --series "noble,jammy,focal"
 ```
+
+Normally include the orig tarball. Use `--no-orig` only when retrying an upload
+whose exact generated upstream version already has an accepted orig tarball in
+the PPA.
 
 After Launchpad finishes building:
 

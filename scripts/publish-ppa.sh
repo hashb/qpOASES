@@ -6,7 +6,7 @@ PPA="ppa:hashb/robotics"
 SERIES="resolute noble jammy focal bionic"
 VERSION_SUFFIX="$(date -u +%Y%m%d%H%M)"
 SIGN_KEY=""
-INCLUDE_ORIG="first"
+INCLUDE_ORIG="yes"
 
 usage() {
     cat <<'EOF'
@@ -23,7 +23,8 @@ Options:
   --suffix VALUE     Version suffix. Default: UTC timestamp YYYYMMDDHHMM
   --key VALUE        Optional GPG fingerprint/key id passed to dpkg-buildpackage -k.
   --no-orig          Do not include qpoases_<version>.orig.tar.gz in uploads.
-                    Use this after the orig tarball is already accepted in the PPA.
+                    Use only when the exact generated orig version already
+                    exists in the PPA.
   -h, --help         Show this help.
 
 Examples:
@@ -61,7 +62,7 @@ while [ "$#" -gt 0 ]; do
             shift 2
             ;;
         --no-orig)
-            INCLUDE_ORIG="none"
+            INCLUDE_ORIG="no"
             shift
             ;;
         -h|--help)
@@ -91,7 +92,7 @@ fi
 
 source_package="$(dpkg-parsechangelog -S Source)"
 current_version="$(dpkg-parsechangelog -S Version)"
-upstream_version="${current_version%%-*}"
+base_upstream_version="${current_version%%-*}"
 if [ -z "${SIGN_KEY}" ]; then
     SIGN_KEY="$(gpg --batch --list-secret-keys --with-colons 2>/dev/null | awk -F: 'seen && /^fpr:/ { print $10; exit } /^sec:/ { seen = 1 }')"
 fi
@@ -103,41 +104,39 @@ fi
 workdir="$(mktemp -d)"
 trap 'rm -rf "${workdir}"' EXIT
 
-source_dir="${workdir}/${source_package}-${upstream_version}"
-mkdir -p "${source_dir}"
-git archive --format=tar HEAD | tar -x -C "${source_dir}"
-
-git archive --format=tar \
-    --prefix="${source_package}-${upstream_version}/" \
-    HEAD -- . ':(exclude)debian' \
-    | gzip -n > "${workdir}/${source_package}_${upstream_version}.orig.tar.gz"
-
-cp "${source_dir}/debian/changelog" "${workdir}/changelog.orig"
 series_list="$(printf '%s' "${SERIES}" | tr ',' ' ')"
 
-echo "Publishing ${source_package} ${upstream_version} to ${PPA}"
+echo "Publishing ${source_package} ${base_upstream_version} to ${PPA}"
 echo "Series: ${series_list}"
 echo "Version suffix: ${VERSION_SUFFIX}"
 echo "Signing key: ${SIGN_KEY}"
 
 for series in ${series_list}; do
     case "${series}" in
-        bionic) series_version="ubuntu18.04" ;;
-        focal) series_version="ubuntu20.04" ;;
-        jammy) series_version="ubuntu22.04" ;;
-        noble) series_version="ubuntu24.04" ;;
-        resolute) series_version="ubuntu26.04" ;;
+        bionic) series_version="u18.04" ;;
+        focal) series_version="u20.04" ;;
+        jammy) series_version="u22.04" ;;
+        noble) series_version="u24.04" ;;
+        resolute) series_version="u26.04" ;;
         *)
             die "unknown series '${series}'; add its Ubuntu version mapping to this script"
             ;;
     esac
 
-    upload_version="${upstream_version}-1~${series_version}.${VERSION_SUFFIX}"
-    cp "${workdir}/changelog.orig" "${source_dir}/debian/changelog"
-    upload_includes_orig=0
-    if [ "${INCLUDE_ORIG}" = "first" ]; then
+    upload_upstream_version="${base_upstream_version}+ppa${VERSION_SUFFIX}${series_version}"
+    upload_version="${upload_upstream_version}-1~${series_version}.${VERSION_SUFFIX}"
+    source_dir="${workdir}/${source_package}-${upload_upstream_version}"
+    rm -rf "${source_dir}"
+    mkdir -p "${source_dir}"
+    git archive --format=tar HEAD | tar -x -C "${source_dir}"
+
+    git archive --format=tar \
+        --prefix="${source_package}-${upload_upstream_version}/" \
+        HEAD -- . ':(exclude)debian' \
+        | gzip -n > "${workdir}/${source_package}_${upload_upstream_version}.orig.tar.gz"
+
+    if [ "${INCLUDE_ORIG}" = "yes" ]; then
         source_option="-sa"
-        upload_includes_orig=1
     else
         source_option="-sd"
     fi
@@ -154,9 +153,6 @@ for series in ${series_list}; do
 
     changes_file="${workdir}/${source_package}_${upload_version}_source.changes"
     dput "${PPA}" "${changes_file}"
-    if [ "${upload_includes_orig}" -eq 1 ]; then
-        INCLUDE_ORIG="none"
-    fi
 done
 
 echo "Upload requests submitted to ${PPA}."
