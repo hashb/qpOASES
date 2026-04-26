@@ -20,13 +20,13 @@ Options:
   --series VALUE     Space- or comma-separated Ubuntu series.
                     Default: resolute noble jammy focal bionic
   --suffix VALUE     Version suffix. Default: UTC timestamp YYYYMMDDHHMM
-  --key VALUE        Optional GPG key id passed to dpkg-buildpackage -k.
+  --key VALUE        Optional GPG fingerprint/key id passed to dpkg-buildpackage -k.
   -h, --help         Show this help.
 
 Examples:
   scripts/publish-ppa.sh
   scripts/publish-ppa.sh --series "noble,jammy,focal"
-  scripts/publish-ppa.sh --key 0123456789ABCDEF
+  scripts/publish-ppa.sh --key 26D05B8BEC1F83BC3585363FBFFF31922FF3092A
 EOF
 }
 
@@ -71,6 +71,10 @@ for command in git tar dpkg-parsechangelog dch dpkg-buildpackage dput gzip; do
     command -v "${command}" >/dev/null 2>&1 || die "missing required command: ${command}"
 done
 
+if ! command -v gpg >/dev/null 2>&1; then
+    die "missing required command: gpg"
+fi
+
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
@@ -81,6 +85,14 @@ fi
 source_package="$(dpkg-parsechangelog -S Source)"
 current_version="$(dpkg-parsechangelog -S Version)"
 upstream_version="${current_version%%-*}"
+if [ -z "${SIGN_KEY}" ]; then
+    SIGN_KEY="$(gpg --batch --list-secret-keys --with-colons 2>/dev/null | awk -F: 'seen && /^fpr:/ { print $10; exit } /^sec:/ { seen = 1 }')"
+fi
+
+if [ -z "${SIGN_KEY}" ]; then
+    die "no local GPG secret key is available; import/register your Launchpad signing key or pass --key"
+fi
+
 workdir="$(mktemp -d)"
 trap 'rm -rf "${workdir}"' EXIT
 
@@ -99,6 +111,7 @@ series_list="$(printf '%s' "${SERIES}" | tr ',' ' ')"
 echo "Publishing ${source_package} ${upstream_version} to ${PPA}"
 echo "Series: ${series_list}"
 echo "Version suffix: ${VERSION_SUFFIX}"
+echo "Signing key: ${SIGN_KEY}"
 
 for series in ${series_list}; do
     case "${series}" in
@@ -122,12 +135,7 @@ for series in ${series_list}; do
             --newversion "${upload_version}" \
             "Build for ${series} PPA."
 
-        build_args=(-S -sa)
-        if [ -n "${SIGN_KEY}" ]; then
-            build_args+=("-k${SIGN_KEY}")
-        fi
-
-        dpkg-buildpackage "${build_args[@]}"
+        dpkg-buildpackage -S -sa -k"${SIGN_KEY}"
     )
 
     changes_file="${workdir}/${source_package}_${upload_version}_source.changes"

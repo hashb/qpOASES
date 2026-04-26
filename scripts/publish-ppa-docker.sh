@@ -78,8 +78,14 @@ apt-get install -y \
 git config --global --add safe.directory /work
 
 export GNUPGHOME=/tmp/gnupg
-cp -a /host-gnupg "${GNUPGHOME}"
+mkdir -p "${GNUPGHOME}"
+cp -a /host-gnupg/. "${GNUPGHOME}/"
+chown -R "$(id -u):$(id -g)" "${GNUPGHOME}"
 chmod -R go-rwx "${GNUPGHOME}"
+export GPG_TTY="$(tty 2>/dev/null || true)"
+
+echo "GPG secret keys visible inside the container:"
+gpg --batch --list-secret-keys --keyid-format LONG || true
 
 scripts/publish-ppa.sh "$@"
 ' bash "$@"
