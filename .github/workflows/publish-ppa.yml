@@ -3,6 +3,14 @@ name: Publish PPA source package
 on:
   workflow_dispatch:
     inputs:
+      launchpad_owner:
+        description: Launchpad user or team that owns the PPA.
+        required: true
+        default: hashb
+      ppa_name:
+        description: Launchpad PPA name.
+        required: true
+        default: qpoases
       ubuntu_series:
         description: Ubuntu series to publish to, for example noble or jammy.
         required: true
@@ -102,10 +110,11 @@ jobs:
       - name: Upload source package to Launchpad
         run: |
           set -euo pipefail
-          if [ -z "${LAUNCHPAD_PPA}" ]; then
-            echo "LAUNCHPAD_PPA is not set; expected a value like ppa:owner/name" >&2
+          target_ppa="${LAUNCHPAD_PPA:-ppa:${{ inputs.launchpad_owner }}/${{ inputs.ppa_name }}}"
+          if [ -z "${target_ppa}" ]; then
+            echo "No Launchpad PPA target configured" >&2
             exit 1
           fi
 
           changes_file="$(ls ../qpoases_*_source.changes | head -n 1)"
-          dput "${LAUNCHPAD_PPA}" "${changes_file}"
+          dput "${target_ppa}" "${changes_file}"
