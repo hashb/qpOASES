@@ -85,7 +85,7 @@ resolute noble jammy focal bionic
 ```
 
 Install the packaging tools, then run the script from a clean committed
-checkout:
+checkout on Ubuntu or Debian:
 
 ```sh
 sudo apt-get update
@@ -93,12 +93,23 @@ sudo apt-get install -y build-essential cmake debhelper devscripts dpkg-dev dput
 scripts/publish-ppa.sh
 ```
 
+On macOS, use Docker Desktop and run the Ubuntu wrapper instead:
+
+```sh
+scripts/publish-ppa-docker.sh
+```
+
+The Docker wrapper mounts the repository and your local `~/.gnupg`, copies the
+keyring into an ephemeral Ubuntu container, installs Debian packaging tools
+there, and calls `scripts/publish-ppa.sh`.
+
 Useful overrides:
 
 ```sh
 scripts/publish-ppa.sh --series "noble,jammy,focal"
 scripts/publish-ppa.sh --suffix 2
 scripts/publish-ppa.sh --key <gpg-key-id>
+scripts/publish-ppa-docker.sh --series "noble,jammy,focal"
 ```
 
 After Launchpad finishes building:
