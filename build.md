@@ -34,8 +34,8 @@ dpkg-buildpackage -us -uc -b
 ```
 
 This produces `libqpoases3.2` and `libqpoases-dev` in the parent directory.
-The development package installs headers, `libqpOASES.so`, and the CMake
-package config under the Debian multiarch library directory.
+The development package installs headers, `libqpOASES.so`, `libqpOASES.a`, and
+the CMake package config under the Debian multiarch library directory.
 
 ## GitHub Actions
 
@@ -46,7 +46,8 @@ find_package(qpOASES CONFIG REQUIRED)
 dpkg-buildpackage -us -uc -b
 ```
 
-The workflow also uploads the generated `.deb` files as a build artifact.
+The workflow also uploads the generated `.deb` files as a build artifact. It
+runs on pull requests and manual dispatch only.
 
 ## Launchpad PPA
 
@@ -56,47 +57,15 @@ Create a PPA named `qpoases` under your Launchpad account:
 https://launchpad.net/~hashb
 ```
 
-The publish workflow defaults to:
-
-```text
-ppa:hashb/qpoases
-```
-
-If you use Launchpad's default PPA name, run the workflow with `ppa_name` set
-to `ppa` instead.
+Use `ppa:hashb/qpoases` for a PPA named `qpoases`, or `ppa:hashb/ppa` for
+Launchpad's default PPA name.
 
 The upload must be signed by a GPG key registered on the `hashb` Launchpad
-account. Export that private key locally and add it to GitHub Actions:
+account. Keep the private key on your own machine and upload locally with
+`dput`; do not put the private key in GitHub Actions secrets.
 
-```text
-LAUNCHPAD_GPG_PRIVATE_KEY=<ASCII-armored private key registered with Launchpad>
-LAUNCHPAD_GPG_PASSPHRASE=<optional key passphrase>
-DEBFULLNAME=<optional changelog signer name>
-DEBEMAIL=<optional changelog signer email>
-LAUNCHPAD_PPA=<optional override, for example ppa:hashb/qpoases>
-```
-
-With the GitHub CLI:
-
-```sh
-gpg --list-secret-keys --keyid-format LONG
-gpg --armor --export-secret-keys <key-id> > /tmp/qpoases-launchpad-private.asc
-gh secret set LAUNCHPAD_GPG_PRIVATE_KEY < /tmp/qpoases-launchpad-private.asc
-gh secret set LAUNCHPAD_GPG_PASSPHRASE
-gh secret set DEBFULLNAME --body "<your name>"
-gh secret set DEBEMAIL --body "<email registered on Launchpad>"
-```
-
-Run the `Publish PPA source package` workflow manually with the defaults:
-
-```text
-launchpad_owner: hashb
-ppa_name: qpoases
-ubuntu_series: resolute,noble,jammy,focal,bionic
-```
-
-The workflow creates one signed source upload per Ubuntu series. Versions use
-numeric Ubuntu suffixes so upgrades sort correctly across releases, for example:
+Create one signed source upload per Ubuntu series. Versions should use numeric
+Ubuntu suffixes so upgrades sort correctly across releases, for example:
 
 ```text
 3.2.2-1~ubuntu18.04.123.1
@@ -106,8 +75,37 @@ numeric Ubuntu suffixes so upgrades sort correctly across releases, for example:
 3.2.2-1~ubuntu26.04.123.1
 ```
 
-To publish fewer releases, pass a shorter comma-separated list such as
-`noble,jammy,focal`.
+Suggested series list:
+
+```text
+resolute noble jammy focal bionic
+```
+
+Example local source upload for one series:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y build-essential cmake debhelper devscripts dpkg-dev dput gnupg
+
+series=noble
+series_version=ubuntu24.04
+run_suffix=1
+upstream_version="$(dpkg-parsechangelog -S Version | sed -E 's/-.*$//')"
+upload_version="${upstream_version}-1~${series_version}.${run_suffix}"
+
+git archive --format=tar \
+  --prefix="qpoases-${upstream_version}/" \
+  HEAD -- . ':(exclude)debian' \
+  | gzip -n > "../qpoases_${upstream_version}.orig.tar.gz"
+
+dch --force-distribution \
+  --distribution "${series}" \
+  --newversion "${upload_version}" \
+  "Build for ${series} PPA."
+
+dpkg-buildpackage -S -sa
+dput ppa:hashb/qpoases "../qpoases_${upload_version}_source.changes"
+```
 
 After Launchpad finishes building:
 

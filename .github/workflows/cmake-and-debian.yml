@@ -1,11 +1,6 @@
 name: CMake and Debian package
 
 on:
-  push:
-    branches:
-      - master
-      - main
-      - build
   pull_request:
   workflow_dispatch:
 
