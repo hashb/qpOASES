@@ -1,0 +1,111 @@
+name: Publish PPA source package
+
+on:
+  workflow_dispatch:
+    inputs:
+      ubuntu_series:
+        description: Ubuntu series to publish to, for example noble or jammy.
+        required: true
+        default: noble
+      version_suffix:
+        description: Optional suffix after the Ubuntu series; defaults to the workflow run number.
+        required: false
+        default: ""
+
+jobs:
+  publish:
+    name: Sign and upload source package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    env:
+      DEBFULLNAME: ${{ secrets.DEBFULLNAME }}
+      DEBEMAIL: ${{ secrets.DEBEMAIL }}
+      LAUNCHPAD_GPG_PRIVATE_KEY: ${{ secrets.LAUNCHPAD_GPG_PRIVATE_KEY }}
+      LAUNCHPAD_GPG_PASSPHRASE: ${{ secrets.LAUNCHPAD_GPG_PASSPHRASE }}
+      LAUNCHPAD_PPA: ${{ secrets.LAUNCHPAD_PPA }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake devscripts debhelper dpkg-dev dput gnupg
+
+      - name: Import Launchpad signing key
+        run: |
+          set -euo pipefail
+          if [ -z "${LAUNCHPAD_GPG_PRIVATE_KEY}" ]; then
+            echo "LAUNCHPAD_GPG_PRIVATE_KEY is not set" >&2
+            exit 1
+          fi
+
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          printf '%s\n' "pinentry-mode loopback" > ~/.gnupg/gpg.conf
+          {
+            printf '%s\n' "allow-loopback-pinentry"
+            printf '%s\n' "allow-preset-passphrase"
+          } > ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent || true
+
+          printf '%s\n' "${LAUNCHPAD_GPG_PRIVATE_KEY}" | gpg --batch --import
+          key_id="$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^sec:/ { print $5; exit }')"
+          if [ -z "${key_id}" ]; then
+            echo "No secret GPG key was imported" >&2
+            exit 1
+          fi
+
+          if [ -n "${LAUNCHPAD_GPG_PASSPHRASE:-}" ]; then
+            keygrip="$(gpg --batch --with-keygrip --list-secret-keys "${key_id}" | awk '/Keygrip =/ { print $3; exit }')"
+            if [ -n "${keygrip}" ]; then
+              /usr/lib/gnupg/gpg-preset-passphrase --preset \
+                --passphrase "${LAUNCHPAD_GPG_PASSPHRASE}" \
+                "${keygrip}" || true
+            fi
+          fi
+
+          echo "DEBSIGN_KEYID=${key_id}" >> "${GITHUB_ENV}"
+
+      - name: Prepare source package metadata
+        run: |
+          set -euo pipefail
+          series="${{ inputs.ubuntu_series }}"
+          suffix="${{ inputs.version_suffix }}"
+          if [ -z "${suffix}" ]; then
+            suffix="${GITHUB_RUN_NUMBER}"
+          fi
+
+          export DEBFULLNAME="${DEBFULLNAME:-qpOASES PPA Builder}"
+          export DEBEMAIL="${DEBEMAIL:-qpoases-ppa@example.invalid}"
+
+          upstream_version="$(dpkg-parsechangelog -S Version | sed -E 's/-.*$//')"
+          upload_version="${upstream_version}-1~${series}${suffix}"
+          dch --force-distribution \
+            --distribution "${series}" \
+            --newversion "${upload_version}" \
+            "Build for ${series} PPA."
+
+          git archive --format=tar \
+            --prefix="qpoases-${upstream_version}/" \
+            HEAD -- . ':(exclude)debian' \
+            | gzip -n > "../qpoases_${upstream_version}.orig.tar.gz"
+
+      - name: Build signed source package
+        run: dpkg-buildpackage -S -sa -k"${DEBSIGN_KEYID}"
+
+      - name: Upload source package to Launchpad
+        run: |
+          set -euo pipefail
+          if [ -z "${LAUNCHPAD_PPA}" ]; then
+            echo "LAUNCHPAD_PPA is not set; expected a value like ppa:owner/name" >&2
+            exit 1
+          fi
+
+          changes_file="$(ls ../qpoases_*_source.changes | head -n 1)"
+          dput "${LAUNCHPAD_PPA}" "${changes_file}"
