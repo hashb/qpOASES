@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DQPOASES_BUILD_SHARED_LIBRARY=ON \
+		-DQPOASES_BUILD_STATIC_LIBRARY=ON \
+		-DCMAKE_INSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
+		-DQPOASES_BUILD_EXAMPLES=OFF \
+		-DCMAKE_SKIP_INSTALL_RPATH=ON

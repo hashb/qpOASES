@@ -1,0 +1,4 @@
+usr/include/*
+usr/lib/*/cmake/qpOASES/*
+usr/lib/*/libqpOASES.so
+usr/lib/*/libqpOASES.a

@@ -1,0 +1,40 @@
+Source: qpoases
+Section: libs
+Priority: optional
+Maintainer: qpOASES Maintainers <support@qpOASES.org>
+Build-Depends:
+ cmake (>= 3.5),
+ debhelper (>= 11),
+ dpkg-dev,
+ g++
+Standards-Version: 4.7.0
+Homepage: https://github.com/coin-or/qpOASES
+Vcs-Browser: https://github.com/hashb/qpOASES
+Vcs-Git: https://github.com/hashb/qpOASES.git
+
+Package: libqpoases3.2
+Architecture: any
+Multi-Arch: same
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends}
+Description: online active set strategy quadratic programming solver
+ qpOASES is a C++ implementation of the online active set strategy for
+ parametric quadratic programming. It is commonly used in model predictive
+ control and other applications that solve related sequences of QP problems.
+ .
+ This package contains the qpOASES shared runtime library.
+
+Package: libqpoases-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends:
+ libqpoases3.2 (= ${binary:Version}),
+ ${misc:Depends}
+Description: development files for qpOASES
+ qpOASES is a C++ implementation of the online active set strategy for
+ parametric quadratic programming.
+ .
+ This package contains the qpOASES headers, unversioned development library
+ symlink, and CMake package files for find_package(qpOASES).

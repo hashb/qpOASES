@@ -1,0 +1,78 @@
+name: CMake and Debian package
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cmake-package:
+    name: CMake package config
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
+
+      - name: Build and install qpOASES
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/install" \
+            -DQPOASES_BUILD_EXAMPLES=OFF
+          cmake --build build --parallel
+          cmake --install build
+
+      - name: Verify find_package consumer
+        run: |
+          mkdir -p consumer
+          cat > consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(qpoases_consumer CXX)
+          find_package(qpOASES CONFIG REQUIRED)
+          add_executable(qpoases_consumer main.cpp)
+          target_link_libraries(qpoases_consumer PRIVATE qpOASES::qpOASES)
+          EOF
+          cat > consumer/main.cpp <<'EOF'
+          #include <qpOASES.hpp>
+
+          int main()
+          {
+              qpOASES::Options options;
+              options.setToDefault();
+              return 0;
+          }
+          EOF
+          cmake -S consumer -B consumer/build -DCMAKE_PREFIX_PATH="$PWD/install"
+          cmake --build consumer/build --parallel
+
+  debian-package:
+    name: Debian binary package
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake debhelper devscripts dpkg-dev
+
+      - name: Build binary packages
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: Collect package artifacts
+        run: |
+          mkdir -p artifacts
+          cp ../*.deb ../*.buildinfo ../*.changes artifacts/
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qpoases-debian-packages
+          path: artifacts/
